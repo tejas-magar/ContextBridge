@@ -43,4 +43,4 @@ I built ContextBridge with a "trust no one" approach for the backend.
 I kept it simple and powerful: **Node.js** and **Express** on the back, **React** and **Vite** on the front. Styled with pure **CSS** to keep it lightweight and fast.
 
 ---
-Built with ☕ and code by **Tejas**
+By **Tejas**
