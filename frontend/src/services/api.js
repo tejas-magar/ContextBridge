@@ -15,39 +15,71 @@ http.interceptors.request.use(config => {
   return config;
 });
 
-export const analyzeProject = async (projectPath, model) => {
-  const res = await http.post('/analyze', { projectPath, model });
-  return res.data;
-};
-
 export const analyzeGithub = async (repoUrl, model, branch = '', ignorePatterns = []) => {
   const res = await http.post('/analyze-github', { repoUrl, model, branch, ignorePatterns });
+  if (res.data.success) {
+    saveToLocalHistory(res.data.data);
+  }
   return res.data;
 };
 
-export const chatQuery = async (historyId, query, model) => {
-  const res = await http.post('/query', { historyId, query, model });
+export const chatQuery = async (context, query, model) => {
+  const res = await http.post('/query', { context, query, model });
   return res.data;
 };
 
-export const queryProject = async (model, task, projectRoot) => {
-  const res = await http.post('/query', { model, task, projectRoot });
-  return res.data;
+// ─── Local History Logic ─────────────────────────────────────────────────────
+
+const HISTORY_KEY = 'cb_scan_history';
+
+function deriveName(projectPath) {
+  if (!projectPath) return 'Unknown Project';
+  const gitMatch = projectPath.match(/\/([^/]+?)(\.git)?$/);
+  if (gitMatch) return gitMatch[1];
+  return projectPath.split('/').pop() || projectPath;
+}
+
+export const saveToLocalHistory = (result) => {
+  const history = getLocalHistory();
+  
+  // Create a new entry
+  const entry = {
+    id: `h_${Date.now()}`,
+    projectName: deriveName(result.projectPath),
+    projectPath: result.projectPath,
+    isGitHub: true,
+    fileCount: result.fileCount,
+    techStack: result.techStack || [],
+    tokenEstimate: result.tokenEstimate,
+    contextDoc: result.contextDoc,
+    fileTreeJson: result.fileTreeJson,
+    model: result.model || 'gemini',
+    createdAt: new Date().toISOString(),
+  };
+
+  // Prepend and cap
+  history.unshift(entry);
+  if (history.length > 20) history.splice(20);
+  
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  return entry;
 };
 
-export const getHistory = async () => {
-  const res = await http.get('/history');
-  return res.data;
+export const getLocalHistory = () => {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+  } catch {
+    return [];
+  }
 };
 
-export const getHistoryEntry = async (id) => {
-  const res = await http.get(`/history/${id}`);
-  return res.data;
+export const getLocalHistoryEntry = (id) => {
+  return getLocalHistory().find(e => e.id === id) || null;
 };
 
-export const deleteHistoryEntry = async (id) => {
-  const res = await http.delete(`/history/${id}`);
-  return res.data;
+export const deleteLocalHistoryEntry = (id) => {
+  const history = getLocalHistory().filter(e => e.id !== id);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
 };
 
 export const checkHealth = async () => {

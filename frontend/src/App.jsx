@@ -3,7 +3,7 @@ import { GitBranch, FolderSearch, Sun, Moon, Cpu, ChevronDown, Clock, Trash2, Se
 import { ScannerPage } from './pages/ScannerPage';
 import { ResultPage }  from './pages/ResultPage';
 import { useTheme }    from './hooks/useTheme';
-import { getHistory, getHistoryEntry, deleteHistoryEntry } from './services/api';
+import { getLocalHistory, getLocalHistoryEntry, deleteLocalHistoryEntry } from './services/api';
 
 export default function App() {
   const { theme, toggle } = useTheme();
@@ -17,13 +17,9 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('cb_api_key') || '');
 
-  const fetchHistory = async () => {
-    try {
-      const res = await getHistory();
-      setHistory(res.data || []);
-    } catch (err) {
-      console.error('Failed to fetch history', err);
-    }
+  const fetchHistory = () => {
+    const data = getLocalHistory();
+    setHistory(data);
   };
 
   useEffect(() => {
@@ -45,28 +41,19 @@ export default function App() {
     setPage('scanner');
   };
 
-  const loadHistoryEntry = async (id) => {
-    setLoadingHistory(true);
-    try {
-      const res = await getHistoryEntry(id);
-      setResult(res.data);
+  const loadHistoryEntry = (id) => {
+    const entry = getLocalHistoryEntry(id);
+    if (entry) {
+      setResult(entry);
       setPage('result');
-    } catch (err) {
-      console.error('Failed to load entry', err);
-    } finally {
-      setLoadingHistory(false);
     }
   };
 
-  const deleteHistoryItem = async (e, id) => {
+  const deleteHistoryItem = (e, id) => {
     e.stopPropagation();
-    try {
-      await deleteHistoryEntry(id);
-      setHistory(h => h.filter(item => item.id !== id));
-      if (result && result.id === id) handleReset();
-    } catch (err) {
-      console.error('Failed to delete', err);
-    }
+    deleteLocalHistoryEntry(id);
+    setHistory(h => h.filter(item => item.id !== id));
+    if (result && result.id === id) handleReset();
   };
 
   const saveSettings = () => {

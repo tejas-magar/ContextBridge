@@ -4,7 +4,6 @@ const rateLimit  = require('express-rate-limit');
 const contextBridge   = require('./ContextBridge');
 const projectAnalyzer = require('./ProjectAnalyzer');
 const gitCloner       = require('./GitCloner');
-const historyManager  = require('./HistoryManager');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -89,7 +88,6 @@ app.post('/analyze-github', async (req, res) => {
     }
 
     const result = await gitCloner.analyzeRepo(repoUrl, model, apiKey, branch, ignorePatterns);
-    historyManager.push(result); // Save to history
     res.json({ success: true, data: result });
 
   } catch (error) {
@@ -98,51 +96,25 @@ app.post('/analyze-github', async (req, res) => {
   }
 });
 
-// History endpoints
-app.get('/history', (req, res) => {
-  // Return history without the full contextDoc to keep payload small
-  const history = historyManager.list().map(h => {
-    const { contextDoc, ...meta } = h;
-    return meta;
-  });
-  res.json({ success: true, data: history });
-});
-
-app.get('/history/:id', (req, res) => {
-  const entry = historyManager.getById(req.params.id);
-  if (!entry) return res.status(404).json({ success: false, error: 'History entry not found.' });
-  res.json({ success: true, data: entry });
-});
-
-app.delete('/history/:id', (req, res) => {
-  historyManager.delete(req.params.id);
-  res.json({ success: true });
-});
-
 // Chat query
 app.post('/query', async (req, res) => {
   try {
-    const { historyId, query, model } = req.body;
+    const { context, query, model } = req.body;
     const apiKey = req.headers['x-api-key'];
 
-    if (!historyId || !query || !model) {
-      return res.status(400).json({ success: false, error: "Missing 'historyId', 'query' or 'model'." });
+    if (!context || !query || !model) {
+      return res.status(400).json({ success: false, error: "Missing 'context', 'query' or 'model'." });
     }
     if (!apiKey) {
       return res.status(401).json({ success: false, error: "Missing API key." });
     }
 
-    const entry = historyManager.getById(historyId);
-    if (!entry) {
-      return res.status(404).json({ success: false, error: "History entry not found." });
-    }
-
-    // Limit task length to prevent prompt injection bloat
+    // Limit query length to prevent prompt injection bloat
     if (query.length > 4000) {
       return res.status(400).json({ success: false, error: 'Query exceeds 4000 character limit.' });
     }
 
-    const finalPrompt = `PROJECT CONTEXT:\n\n${entry.contextDoc}\n\n---\n\nUSER QUESTION:\n${query}\n\nPlease answer the question based purely on the project context above.`;
+    const finalPrompt = `PROJECT CONTEXT:\n\n${context}\n\n---\n\nUSER QUESTION:\n${query}\n\nPlease answer the question based purely on the project context above.`;
     
     const aiConnector = require('./modules/aiConnector');
     const result = await aiConnector.sendToAI(model, finalPrompt, apiKey);

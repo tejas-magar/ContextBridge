@@ -113,7 +113,7 @@ export const ResultPage = ({ result, onReset }) => {
     setChatLoading(true);
 
     try {
-      const res = await chatQuery(result.id, query, result.model || 'gemini');
+      const res = await chatQuery(result.contextDoc, query, result.model || 'gemini');
       setMessages(prev => [...prev, { role: 'ai', content: res.data }]);
     } catch (err) {
       setMessages(prev => [...prev, { role: 'system', content: `Error: ${err.response?.data?.error || err.message}` }]);
