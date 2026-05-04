@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FolderSearch, Sparkles, FileText, GitBranch } from 'lucide-react';
-import { analyzeProject, analyzeGithub } from '../services/api';
+import { analyzeGithub } from '../services/api';
 
 const STEPS = [
   'Scanning project files…',
