@@ -160,8 +160,14 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, error: 'Internal server error.' });
 });
 
-app.listen(PORT, () => {
-  console.log(`ContextBridge server listening on port ${PORT}`);
-  console.log(`  POST /analyze-github  → Clone & analyze GitHub repo`);
-  console.log(`  POST /query           → Chat with project context`);
-});
+// Export for Vercel
+module.exports = app;
+
+// Only listen if not running as a Vercel function
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`ContextBridge server listening on port ${PORT}`);
+    console.log(`  POST /analyze-github  → Clone & analyze GitHub repo`);
+    console.log(`  POST /query           → Chat with project context`);
+  });
+}

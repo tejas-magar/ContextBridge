@@ -117,5 +117,276 @@
     "hash": "bafaf9bcd46bbdd1",
     "cachedAt": "2026-05-03T19:14:50.197Z",
     "lastAccessed": "2026-05-03T19:14:50.197Z"
+  },
+  "4d480eeae52ff584": {
+    "contextDoc": "# Project Context Document\n\nThis document provides a comprehensive, technical overview of the project, designed for quick integration with AI assistants.\n\n## 1. Project Overview\n\nThis project is a developer tool designed to bridge the gap between complex codebases and AI assistants. It functions by scanning a given project, generating a highly structured, token-efficient \"context document\" that encapsulates the codebase's essence. This context, combined with a user's task, is then presented to various AI models to facilitate understanding, analysis, and assistance without requiring manual context provision.\n\nThe core purpose is to enable seamless AI interaction with software projects. It aims to eliminate repetitive explanations, provide robust AI connectivity with fallback mechanisms, and manage project context, history, and caching efficiently. This allows developers to leverage AI for tasks like code explanation, debugging, feature suggestions, or architectural insights directly relevant to their codebase.\n\n## 2. Tech Stack\n\nThe project utilizes a split architecture with distinct frontend and backend components:\n\n*   **Frontend:**\n    *   **Framework:** React\n    *   **Build Tool:** Vite\n    *   **Styling:** Tailwind CSS\n    *   **HTTP Client:** Axios\n*   **Backend/Core Logic:**\n    *   **Runtime:** Node.js\n    *   **Data Storage:** Local JSON files\n\n## 3. Architecture\n\nThe system is structured as a client-server application with a clear separation of concerns, resembling a monorepo-like setup:\n\n*   **Frontend (`frontend/`):** A single-page application built with React, Vite, and Tailwind CSS. It provides the user interface for initiating scans, viewing results, and interacting with the backend.\n*   **Backend/Core Services (`src/`):** A Node.js application responsible for all project analysis, AI integration, data management, and orchestration. It is composed of several specialized modules:\n    *   **Orchestration Layer (`src/ContextBridge.js`):** Acts as the primary entry point for AI interactions, coordinating the entire workflow from project analysis to AI response.\n    *   **Core Logic Modules (`src/ProjectAnalyzer.js`, `src/CacheManager.js`, `src/HistoryManager.js`, `src/GitCloner.js`):** Handle core functionalities like project scanning, context caching, historical data storage, and secure Git repository cloning.\n    *   **Sub-Modules (`src/modules/`):** A set of highly focused sub-modules addressing specific concerns:\n        *   `aiConnector`: Manages connections to multiple AI providers with fallback logic.\n        *   `contextManager`: Stores and retrieves conversation context.\n        *   `contextSummarizer`: Compresses project context for AI token efficiency.\n        *   `fileManager`: Handles file system operations.\n        *   `fileSummarizer`: Extracts non-AI-generated summaries from project files.\n        *   `promptBuilder`: Constructs optimized AI prompts.\n*   **Data Layer (`data/`):** Persistent storage using local JSON files for cache, current context, and historical records.\n\n## 4. Key Files & Their Purpose\n\n| File Path                            | Purpose                                                                                                                                                                                                   |\n| :----------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |\n| `src/ProjectAnalyzer.js`             | Scans projects and generates a portable context document for AI consumption.                                                                                                                              |\n| `src/ContextBridge.js`               | Orchestrates the full AI switching and context injection workflow, acting as the main backend controller.                                                                                                   |\n| `src/CacheManager.js`                | Manages smart context caching by hashing file trees to detect changes and store/retrieve context in `data/cache.json`.                                                                                    |\n| `src/HistoryManager.js`              | Manages persistent session history, saving generated context documents and metadata to `data/history.json`.                                                                                               |\n| `src/GitCloner.js`                   | Security-hardened module for cloning remote Git repositories to temporary directories, running analysis, and cleaning up.                                                                                   |\n| `src/modules/aiConnector/index.js`   | Routes requests to AI providers using a waterfall fallback strategy to handle quotas/rate limits.                                                                                                         |\n| `src/modules/contextManager/index.js`| Responsible for storing, retrieving, and managing conversation context, currently via `data/context.json`.                                                                                                |\n| `src/modules/contextSummarizer/index.js`| Compresses the full project context and file summaries into a token-efficient, prompt-friendly format for AI.                                                                                             |\n| `src/modules/fileManager/index.js`   | Handles file reading, writing, and parsing for context ingestion.                                                                                                                                         |\n| `src/modules/fileSummarizer/index.js`| Extracts meaningful summaries from files without using AI, aiming to avoid rate limits.                                                                                                                   |\n| `src/modules/promptBuilder/index.js` | Constructs final, token-efficient AI prompts by combining compressed context, important files, and the user's task.                                                                                       |\n| `data/cache.json`                    | Stores cached project context documents (metadata only, no raw file contents).                                                                                                                            |\n| `data/context.json`                  | Stores the current conversational/session context.                                                                                                                                                        |\n| `data/history.json`                  | Stores historical generated context documents and their metadata.                                                                                                                                         |\n| `frontend/src/App.jsx`               | The main React component, serving as the application's root.                                                                                                                                              |\n| `frontend/src/pages/ScannerPage.jsx` | React component for the user interface to initiate project scans.                                                                                                                                         |\n| `frontend/src/pages/ResultPage.jsx`  | React component for displaying the AI's analysis and responses.                                                                                                                                           |\n| `frontend/src/services/api.js`       | Frontend service responsible for making HTTP requests to the Node.js backend.                                                                                                                             |\n\n## 5. Data Flow\n\n1.  **User Input (Frontend):** A user interacts with the `ScannerPage.jsx` to specify a project path (local or Git URL) and a task/query for the AI.\n2.  **API Request (Frontend to Backend):** `frontend/src/services/api.js` sends an HTTP request containing the user's task, target AI model, and project root to the Node.js backend.\n3.  **Backend Orchestration (`ContextBridge`):** `src/ContextBridge.js` receives the request and initiates the workflow.\n4.  **Project Acquisition (`GitCloner` - if remote):** If a Git URL is provided, `src/GitCloner.js` securely clones the repository to a temporary directory.\n5.  **Cache Check (`CacheManager`):** `src/CacheManager.js` hashes the project's file tree and checks `data/cache.json` for a valid, unexpired, and matching cached context document.\n6.  **Project Analysis (`ProjectAnalyzer` - if not cached):**\n    *   If no valid cache is found or changes are detected, `src/ProjectAnalyzer.js` proceeds with a full scan.\n    *   `src/modules/fileManager/index.js` reads project files.\n    *   `src/modules/fileSummarizer/index.js` generates file summaries.\n    *   The raw project context document is assembled.\n7.  **Context Management (`ContextManager`):** `src/modules/contextManager/index.js` retrieves or updates conversational context from `data/context.json`.\n8.  **Context Summarization (`ContextSummarizer`):** `src/modules/contextSummarizer/index.js` compresses the generated project context and any relevant conversational context into a token-efficient format.\n9.  **Prompt Building (`PromptBuilder`):** `src/modules/promptBuilder/index.js` constructs the final AI prompt using the compressed context, key files, and the user's specific task.\n10. **AI Interaction (`AIConnector`):** `src/modules/aiConnector/index.js` sends the prompt to the specified AI model, handling provider routing and fallback strategies.\n11. **History Update (`HistoryManager`):** Upon receiving a response (or generating a new context), `src/HistoryManager.js` saves the generated context document and metadata to `data/history.json`.\n12. **Cache Update (`CacheManager`):** If a new context was generated, `src/CacheManager.js` updates `data/cache.json` with the new cache entry.\n13. **Result Return (Backend to Frontend):** `src/ContextBridge.js` returns the AI's response and any updated context to the frontend.\n14. **Display Result (Frontend):** `frontend/src/pages/ResultPage.jsx` renders the AI's response to the user.\n\n## 6. Key Design Decisions\n\n*   **Portable AI Context:** The `ProjectAnalyzer` is designed to produce a structured, AI-agnostic context document, enabling compatibility with various AI models without vendor lock-in.\n*   **Aggressive Caching Strategy:** `CacheManager` uses file tree hashing to intelligently detect project changes, minimizing redundant analysis and AI calls, significantly speeding up subsequent scans. Raw file contents are not stored in cache for security/efficiency.\n*   **Robust AI Connectivity:** The `aiConnector` module implements a waterfall fallback strategy for AI providers, enhancing reliability against rate limits, quotas, or service interruptions.\n*   **Token Efficiency Optimization:** Explicit modules like `contextSummarizer` and `promptBuilder` are dedicated to compressing project context and constructing prompts efficiently, critical for managing costs and performance with LLMs.\n*   **Secure Git Operations:** The `GitCloner` module is explicitly \"SECURITY HARDENED,\" emphasizing temporary cloning and thorough cleanup to mitigate risks associated with processing external repositories.\n*   **Modularity and Extensibility:** The backend is organized into distinct, focused modules (`fileManager`, `contextManager`, `aiConnector`, etc.), promoting maintainability, testability, and future extensibility (e.g., easy adaptation of `contextManager` to a database).\n*   **Persistent Local Data:** Utilizing JSON files for `cache.json`, `context.json`, and `history.json` provides simple, local persistence for user data and system state.\n\n## 7. How to Use / Run\n\nTo run this project, both the backend (Node.js) and frontend (React/Vite) components need to be started.\n\n1.  **Clone the repository:**\n    ```bash\n    git clone <repository-url>\n    cd <project-directory>\n    ```\n2.  **Install Backend Dependencies:**\n    ```bash\n    npm install\n    ```\n3.  **Install Frontend Dependencies:**\n    ```bash\n    cd frontend\n    npm install\n    cd ..\n    ```\n4.  **Start the Backend:**\n    ```bash\n    node src/index.js\n    ```\n    *(Alternatively, if a `start` script is defined in the root `package.json`, use `npm start`)*\n5.  **Start the Frontend:**\n    ```bash\n    cd frontend\n    npm run dev\n    ```\n    This will typically open the application in your browser (e.g., `http://localhost:5173`).\n\n## 8. Current Status & Known Issues\n\n*   **Current Status:**\n    *   The project provides a functional end-to-end workflow for scanning projects, generating AI-compatible context, connecting to multiple AI providers, and displaying results.\n    *   Core features like context caching, historical logging, and secure Git cloning are implemented.\n    *   The frontend allows for initiating scans and viewing AI responses.\n*   **Known Issues/Limitations:**\n    *   The `Context Manager Module` currently relies on local JSON files (`data/context.json`) for context storage. While functional for single-user scenarios, it is explicitly noted that it is \"designed to be easily adaptable to a database in the future,\" implying potential scalability limitations for complex, multi-user, or very large context requirements in its current state.",
+    "fileCount": 39,
+    "techStack": [
+      "React",
+      "Vite",
+      "Tailwind CSS",
+      "Axios",
+      "Node.js"
+    ],
+    "projectPath": "C:\\Users\\ACERI7~1\\AppData\\Local\\Temp\\cb_1777838932062_oxmllk6638",
+    "tokenEstimate": 1793,
+    "model": "gemini",
+    "fileTreeJson": [
+      {
+        "name": "data",
+        "type": "directory",
+        "children": [
+          {
+            "name": "cache.json",
+            "type": "file"
+          },
+          {
+            "name": "context.json",
+            "type": "file"
+          },
+          {
+            "name": "history.json",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": "frontend",
+        "type": "directory",
+        "children": [
+          {
+            "name": "eslint.config.js",
+            "type": "file"
+          },
+          {
+            "name": "index.html",
+            "type": "file"
+          },
+          {
+            "name": "package-lock.json",
+            "type": "file"
+          },
+          {
+            "name": "package.json",
+            "type": "file"
+          },
+          {
+            "name": "postcss.config.js",
+            "type": "file"
+          },
+          {
+            "name": "public",
+            "type": "directory",
+            "children": [
+              {
+                "name": "favicon.svg",
+                "type": "file"
+              },
+              {
+                "name": "icons.svg",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "README.md",
+            "type": "file"
+          },
+          {
+            "name": "src",
+            "type": "directory",
+            "children": [
+              {
+                "name": "App.css",
+                "type": "file"
+              },
+              {
+                "name": "App.jsx",
+                "type": "file"
+              },
+              {
+                "name": "assets",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "hero.png",
+                    "type": "file"
+                  },
+                  {
+                    "name": "react.svg",
+                    "type": "file"
+                  },
+                  {
+                    "name": "vite.svg",
+                    "type": "file"
+                  }
+                ]
+              },
+              {
+                "name": "hooks",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "useTheme.js",
+                    "type": "file"
+                  }
+                ]
+              },
+              {
+                "name": "index.css",
+                "type": "file"
+              },
+              {
+                "name": "main.jsx",
+                "type": "file"
+              },
+              {
+                "name": "pages",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "ResultPage.jsx",
+                    "type": "file"
+                  },
+                  {
+                    "name": "ScannerPage.jsx",
+                    "type": "file"
+                  }
+                ]
+              },
+              {
+                "name": "services",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "api.js",
+                    "type": "file"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "tailwind.config.js",
+            "type": "file"
+          },
+          {
+            "name": "vite.config.js",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": "package-lock.json",
+        "type": "file"
+      },
+      {
+        "name": "package.json",
+        "type": "file"
+      },
+      {
+        "name": "README.md",
+        "type": "file"
+      },
+      {
+        "name": "src",
+        "type": "directory",
+        "children": [
+          {
+            "name": "CacheManager.js",
+            "type": "file"
+          },
+          {
+            "name": "ContextBridge.js",
+            "type": "file"
+          },
+          {
+            "name": "GitCloner.js",
+            "type": "file"
+          },
+          {
+            "name": "HistoryManager.js",
+            "type": "file"
+          },
+          {
+            "name": "index.js",
+            "type": "file"
+          },
+          {
+            "name": "modules",
+            "type": "directory",
+            "children": [
+              {
+                "name": "aiConnector",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "index.js",
+                    "type": "file"
+                  }
+                ]
+              },
+              {
+                "name": "contextManager",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "index.js",
+                    "type": "file"
+                  }
+                ]
+              },
+              {
+                "name": "contextSummarizer",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "index.js",
+                    "type": "file"
+                  }
+                ]
+              },
+              {
+                "name": "fileManager",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "index.js",
+                    "type": "file"
+                  }
+                ]
+              },
+              {
+                "name": "fileSummarizer",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "index.js",
+                    "type": "file"
+                  }
+                ]
+              },
+              {
+                "name": "promptBuilder",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "index.js",
+                    "type": "file"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "ProjectAnalyzer.js",
+            "type": "file"
+          }
+        ]
+      }
+    ],
+    "hash": "4d480eeae52ff584",
+    "cachedAt": "2026-05-03T20:09:16.423Z",
+    "lastAccessed": "2026-05-03T20:09:16.423Z"
   }
 }
